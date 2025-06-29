@@ -2,8 +2,14 @@
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import app from './app.js';
+import dotenv from 'dotenv';
+
+// Load environment variables từ file .env
+dotenv.config();
 
 const PORT = process.env.PORT || 3000;
+
+console.log(`Server sẽ chạy trên cổng: ${PORT}`);
 
 // Tạo HTTP server
 const server = http.createServer(app);

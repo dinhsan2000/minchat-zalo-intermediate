@@ -25,10 +25,13 @@
     <ol>
         <li><a href="#accounts">accounts - Lấy danh sách tài khoản</a></li>
         <li><a href="#accountDetails">accountDetails - Chi tiết tài khoản</a></li>
+        <li><a href="#loginZalo">loginZalo - Đăng nhập tài khoản Zalo</a></li>
+        <li><a href="#getCredentialInfo">getCredentialInfo - Lấy thông tin credential</a></li>
+        <li><a href="#updateCredentialStatus">updateCredentialStatus - Cập nhật trạng thái credential</a></li>
     </ol>
 
     <h3>🔥 APIs N8N-Friendly (Khuyến nghị)</h3>
-    <ol start="3">
+    <ol start="6">
         <li><a href="#findUserByAccount">findUserByAccount</a></li>
         <li><a href="#getUserInfoByAccount">getUserInfoByAccount</a></li>
         <li><a href="#sendFriendRequestByAccount">sendFriendRequestByAccount</a></li>
@@ -45,7 +48,7 @@
     </ol>
 
     <h3>⚠️ APIs Cũ (Cần ownId)</h3>
-    <ol start="16">
+    <ol start="19">
         <li><a href="#findUser">findUser</a></li>
         <li><a href="#getUserInfo">getUserInfo</a></li>
         <li><a href="#sendFriendRequest">sendFriendRequest</a></li>
@@ -128,11 +131,188 @@ curl http://localhost:3000/api/accounts/123456789
 
     <hr/>
 
+    <h3 id="loginZalo">3. loginZalo - Đăng nhập tài khoản Zalo</h3>
+    <p><strong>Mục đích:</strong> Đăng nhập tài khoản Zalo thông qua API, hỗ trợ đăng nhập bằng cookie hoặc QR code.</p>
+    <p><strong>Endpoint:</strong> <span class="endpoint">POST /api/login-zalo</span></p>
+    <p><strong>Parameters:</strong></p>
+    <table>
+        <tr><th>Field</th><th>Loại</th><th>Mô tả</th><th>Bắt buộc</th></tr>
+        <tr>
+          <td>customProxy</td>
+          <td>string</td>
+          <td>URL proxy tùy chỉnh (định dạng: http://host:port hoặc https://host:port). Nếu không có, sẽ sử dụng proxy từ danh sách có sẵn.</td>
+          <td>Không</td>
+        </tr>
+        <tr>
+          <td>credentialId</td>
+          <td>string</td>
+          <td>ID của credential đã lưu trước đó (ownId). Nếu có, sẽ thử đăng nhập bằng cookie trước.</td>
+          <td>Không</td>
+        </tr>
+    </table>
+    <p><strong>Response Types:</strong></p>
+    <ul>
+        <li><strong>QR Code:</strong> Khi cần quét mã QR để đăng nhập</li>
+        <li><strong>Login Success:</strong> Khi đăng nhập thành công</li>
+        <li><strong>Error:</strong> Khi có lỗi xảy ra</li>
+    </ul>
+    <p><strong>Response QR Code:</strong></p>
+    <pre>
+{
+  "success": true,
+  "type": "qr_code",
+  "data": {
+    "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+    "message": "Vui lòng quét mã QR để đăng nhập"
+  }
+}
+    </pre>
+    <p><strong>Response Login Success:</strong></p>
+    <pre>
+{
+  "success": true,
+  "type": "login_success",
+  "data": {
+    "message": "Đăng nhập thành công",
+    "totalAccounts": 2
+  }
+}
+    </pre>
+    <p><strong>Response Error:</strong></p>
+    <pre>
+{
+  "success": false,
+  "type": "error",
+  "error": "Chi tiết lỗi"
+}
+    </pre>
+    <p><strong>Ví dụ curl - Đăng nhập mới:</strong></p>
+    <pre>
+curl -X POST http://localhost:3000/api/login-zalo \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customProxy": "http://proxy.example.com:8080"
+  }'
+    </pre>
+    <p><strong>Ví dụ curl - Đăng nhập bằng credential:</strong></p>
+    <pre>
+curl -X POST http://localhost:3000/api/login-zalo \
+  -H "Content-Type: application/json" \
+  -d '{
+    "credentialId": "123456789",
+    "customProxy": "http://proxy.example.com:8080"
+  }'
+    </pre>
+
+    <hr/>
+
+    <h3 id="getCredentialInfo">4. getCredentialInfo - Lấy thông tin credential</h3>
+    <p><strong>Mục đích:</strong> Lấy thông tin chi tiết của credential đã lưu, bao gồm trạng thái đăng nhập.</p>
+    <p><strong>Endpoint:</strong> <span class="endpoint">GET /api/credentials/:ownId</span></p>
+    <p><strong>Parameters:</strong></p>
+    <table>
+        <tr><th>Field</th><th>Loại</th><th>Mô tả</th><th>Bắt buộc</th></tr>
+        <tr>
+          <td>ownId</td>
+          <td>string (URL param)</td>
+          <td>ID tài khoản Zalo cần lấy thông tin credential.</td>
+          <td>Có</td>
+        </tr>
+    </table>
+    <p><strong>Response:</strong></p>
+    <pre>
+{
+  "success": true,
+  "data": {
+    "userId": "719042314012359086",
+    "profile": {
+      "userId": "719042314012359086",
+      "displayName": "Tên hiển thị",
+      "phoneNumber": "0901234567"
+    },
+    "loginStatus": {
+      "isLoggedIn": true,
+      "lastLoginTime": "2025-06-29T08:27:27.000Z",
+      "loginMethod": "cookie",
+      "status": "online",
+      "lastStatusUpdate": "2025-06-29T08:27:27.000Z"
+    },
+    "proxy": "http://proxy.example.com:8080",
+    "createdAt": "2025-06-29T08:27:27.000Z",
+    "updatedAt": "2025-06-29T08:27:27.000Z"
+  }
+}
+    </pre>
+    <p><strong>Ví dụ curl:</strong></p>
+    <pre>
+curl http://localhost:3000/api/credentials/719042314012359086
+    </pre>
+
+    <hr/>
+
+    <h3 id="updateCredentialStatus">5. updateCredentialStatus - Cập nhật trạng thái credential</h3>
+    <p><strong>Mục đích:</strong> Cập nhật trạng thái đăng nhập của credential.</p>
+    <p><strong>Endpoint:</strong> <span class="endpoint">PUT /api/credentials/:ownId/status</span></p>
+    <p><strong>Parameters:</strong></p>
+    <table>
+        <tr><th>Field</th><th>Loại</th><th>Mô tả</th><th>Bắt buộc</th></tr>
+        <tr>
+          <td>ownId</td>
+          <td>string (URL param)</td>
+          <td>ID tài khoản Zalo cần cập nhật.</td>
+          <td>Có</td>
+        </tr>
+        <tr>
+          <td>status</td>
+          <td>string</td>
+          <td>Trạng thái mới: "online", "offline", "error", "expired"</td>
+          <td>Có</td>
+        </tr>
+        <tr>
+          <td>additionalInfo</td>
+          <td>object</td>
+          <td>Thông tin bổ sung (reason, errorMessage, errorCode, etc.)</td>
+          <td>Không</td>
+        </tr>
+    </table>
+    <p><strong>Response:</strong></p>
+    <pre>
+{
+  "success": true,
+  "message": "Đã cập nhật trạng thái credential thành offline"
+}
+    </pre>
+    <p><strong>Ví dụ curl - Đánh dấu offline:</strong></p>
+    <pre>
+curl -X PUT http://localhost:3000/api/credentials/719042314012359086/status \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "offline",
+    "additionalInfo": {
+      "reason": "Manual logout"
+    }
+  }'
+    </pre>
+    <p><strong>Ví dụ curl - Đánh dấu lỗi:</strong></p>
+    <pre>
+curl -X PUT http://localhost:3000/api/credentials/719042314012359086/status \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "error",
+    "additionalInfo": {
+      "errorMessage": "Connection timeout",
+      "errorCode": "TIMEOUT"
+    }
+  }'
+    </pre>
+
+    <hr/>
+
     <!-- ===== N8N-FRIENDLY APIs ===== -->
     <h2>🔥 APIs N8N-Friendly (Khuyến nghị sử dụng)</h2>
     <p><strong>Lưu ý:</strong> Các APIs này sử dụng <code>accountSelection</code> thay vì <code>ownId</code>, giúp dễ dàng sử dụng từ n8n workflows.</p>
 
-    <h3 id="findUserByAccount">3. findUserByAccount</h3>
+    <h3 id="findUserByAccount">6. findUserByAccount</h3>
     <p><strong>Mục đích:</strong> Tìm kiếm người dùng dựa trên số điện thoại với account selection.</p>
     <p><strong>Endpoint:</strong> <span class="endpoint">POST /api/findUserByAccount</span></p>
     <p><strong>Parameters:</strong></p>

@@ -6,8 +6,60 @@ import { HttpsProxyAgent } from "https-proxy-agent";
 import nodefetch from "node-fetch";
 import fs from 'fs';
 import { saveImage, removeImage } from '../../utils/helpers.js';
+import crypto from 'crypto';
 
 export const zaloAccounts = [];
+
+// Map để lưu trạng thái login sessions
+const loginSessions = new Map();
+
+// Hàm tạo login session ID
+function generateLoginSessionId() {
+    return crypto.randomUUID();
+}
+
+// Hàm cập nhật trạng thái login session
+function updateLoginSession(sessionId, status, data = {}) {
+    const session = loginSessions.get(sessionId) || {};
+    loginSessions.set(sessionId, {
+        ...session,
+        status,
+        ...data,
+        updatedAt: new Date().toISOString()
+    });
+}
+
+// Hàm lấy thông tin login session
+function getLoginSession(sessionId) {
+    return loginSessions.get(sessionId) || null;
+}
+
+// API để check trạng thái login session
+export async function checkLoginSessionAPI(req, res) {
+    try {
+        const { sessionId } = req.params;
+        
+        if (!sessionId) {
+            return res.status(400).json({ error: 'sessionId là bắt buộc' });
+        }
+        
+        const session = getLoginSession(sessionId);
+        
+        if (!session) {
+            return res.status(404).json({ 
+                success: false,
+                error: 'Không tìm thấy session đăng nhập' 
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: session
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
 
 // API để lấy danh sách tài khoản đã đăng nhập
 export async function getLoggedAccounts(req, res) {
@@ -560,6 +612,8 @@ export async function sendMessage(req, res) {
         if (!message || !threadId || !ownId) {
             return res.status(400).json({ error: 'Dữ liệu không hợp lệ' });
         }
+        console.log('Sending message:', { message, threadId, type, ownId });
+        console.log('Available accounts:', zaloAccounts);
         const account = zaloAccounts.find(acc => acc.ownId === ownId);
         if (!account) {
             return res.status(400).json({ error: 'Không tìm thấy tài khoản Zalo với OwnId này' });
@@ -804,18 +858,137 @@ export async function sendImagesToGroup(req, res) {
     }
 }
 
-export async function loginZaloAccount(customProxy, cred) {
+// API đăng nhập tài khoản Zalo
+export async function loginZaloAccountAPI(req, res) {
+    try {
+        const { customProxy, credentialId, userId } = req.body;
+
+        console.log('API đăng nhập Zalo được gọi...');
+        console.log('Custom proxy:', customProxy || 'không có');
+        console.log('Credential ID:', credentialId || 'không có');
+        console.log('User ID:', userId || 'không có');
+
+        // Tạo session ID cho lần đăng nhập này
+        const loginSessionId = generateLoginSessionId();
+        console.log('Tạo login session ID:', loginSessionId);
+
+        // Khởi tạo session với trạng thái pending
+        updateLoginSession(loginSessionId, 'pending', {
+            customProxy: customProxy || null,
+            credentialId: credentialId || null,
+            startedAt: new Date().toISOString()
+        });
+
+        let cred = null;
+        
+        // Nếu có credentialId, đọc credential từ file
+        if (credentialId) {
+            try {
+                const credPath = `./data/cookies/cred_${credentialId}.json`;
+                if (fs.existsSync(credPath)) {
+                    const credData = fs.readFileSync(credPath, 'utf8');
+                    cred = JSON.parse(credData);
+                    console.log('Đã đọc credential từ file:', credPath);
+                    updateLoginSession(loginSessionId, 'loading_credential');
+                } else {
+                    console.log('File credential không tồn tại:', credPath);
+                    updateLoginSession(loginSessionId, 'credential_not_found');
+                }
+            } catch (error) {
+                console.error('Lỗi khi đọc credential:', error);
+                updateLoginSession(loginSessionId, 'credential_error', { error: error.message });
+            }
+        }
+
+        // Cập nhật session trước khi gọi loginZaloAccount
+        updateLoginSession(loginSessionId, 'connecting');
+
+        const result = await loginZaloAccount(customProxy, cred, loginSessionId);
+        
+        // Kiểm tra kết quả trả về
+        if (typeof result === 'string' && result.startsWith('data:image/png;base64,')) {
+            // Trường hợp trả về QR code
+            updateLoginSession(loginSessionId, 'waiting_qr_scan', {
+                qrCode: result,
+                message: 'Đang chờ quét mã QR'
+            });
+            
+            res.json({
+                success: true,
+                type: 'qr_code',
+                sessionId: loginSessionId,
+                data: {
+                    qrCode: result,
+                    message: 'Vui lòng quét mã QR để đăng nhập'
+                }
+            });
+        } else if (result === true) {
+            // Trường hợp đăng nhập thành công
+            updateLoginSession(loginSessionId, 'success', {
+                message: 'Đăng nhập thành công',
+                totalAccounts: zaloAccounts.length,
+                completedAt: new Date().toISOString()
+            });
+            
+            res.json({
+                success: true,
+                type: 'login_success',
+                sessionId: loginSessionId,
+                data: {
+                    message: 'Đăng nhập thành công',
+                    totalAccounts: zaloAccounts.length
+                }
+            });
+        } else {
+            // Trường hợp khác
+            updateLoginSession(loginSessionId, 'unknown', { result });
+            
+            res.json({
+                success: true,
+                type: 'unknown',
+                sessionId: loginSessionId,
+                data: result
+            });
+        }
+    } catch (error) {
+        console.error('Lỗi API đăng nhập Zalo:', error);
+        
+        // Cập nhật session với lỗi nếu có sessionId
+        if (loginSessionId) {
+            updateLoginSession(loginSessionId, 'error', {
+                error: error.message,
+                errorAt: new Date().toISOString()
+            });
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            type: 'error',
+            sessionId: loginSessionId || null
+        });
+    }
+}
+
+export async function loginZaloAccount(customProxy, cred, sessionId = null, userId = null) {
     let loginResolve;
     return new Promise(async (resolve, reject) => {
         console.log('Bắt đầu quá trình đăng nhập Zalo...');
         console.log('Custom proxy:', customProxy || 'không có');
         console.log('Đang nhập với cookie:', cred ? 'có' : 'không');
+        console.log('Session ID:', sessionId || 'không có');
 
         loginResolve = resolve;
         let agent;
         let proxyUsed = null;
         let useCustomProxy = false;
         let proxies = [];
+        
+        // Cập nhật session status nếu có
+        if (sessionId) {
+            updateLoginSession(sessionId, 'initializing');
+        }
+        
         try {
             const proxiesJson = fs.readFileSync('./data/proxies.json', 'utf8');
             proxies = JSON.parse(proxiesJson);
@@ -872,6 +1045,14 @@ export async function loginZaloAccount(customProxy, cred) {
                 agent = null; // Không sử dụng proxy
             }
         }
+        
+        // Cập nhật session với thông tin proxy
+        if (sessionId) {
+            updateLoginSession(sessionId, 'proxy_configured', {
+                proxy: useCustomProxy ? customProxy : (proxyUsed?.url || 'no_proxy')
+            });
+        }
+        
         let zalo;
         if (useCustomProxy || agent) {
             console.log('Khởi tạo Zalo SDK với proxy agent');
@@ -888,37 +1069,75 @@ export async function loginZaloAccount(customProxy, cred) {
 
         let api;
         try {
+            if (sessionId) {
+                updateLoginSession(sessionId, 'authenticating');
+            }
+            
             if (cred) {
                 console.log('Đang thử đăng nhập bằng cookie...');
                 try {
                     api = await zalo.login(cred);
                     console.log('Đăng nhập bằng cookie thành công');
+                    
+                    if (sessionId) {
+                        updateLoginSession(sessionId, 'cookie_login_success');
+                    }
                 } catch (error) {
                     console.error("Lỗi khi đăng nhập bằng cookie:", error);
                     console.log('Chuyển sang đăng nhập bằng mã QR...');
+                    
+                    if (sessionId) {
+                        updateLoginSession(sessionId, 'cookie_failed_trying_qr');
+                    }
+                    
                     // If cookie login fails, attempt QR code login
                     api = await zalo.loginQR(null, (qrData) => {
                         console.log('Đã nhận dữ liệu QR:', qrData ? 'có dữ liệu' : 'không có dữ liệu');
                         if (qrData?.data?.image) {
                             const qrCodeImage = `data:image/png;base64,${qrData.data.image}`;
                             console.log('Đã tạo mã QR, độ dài:', qrCodeImage.length);
+                            
+                            if (sessionId) {
+                                updateLoginSession(sessionId, 'qr_generated');
+                            }
+                            
                             resolve(qrCodeImage);
                         } else {
                             console.error('Không thể lấy mã QR từ Zalo SDK');
+                            
+                            if (sessionId) {
+                                updateLoginSession(sessionId, 'qr_generation_failed');
+                            }
+                            
                             reject(new Error("Không thể lấy mã QR"));
                         }
                     });
                 }
             } else {
                 console.log('Đang tạo mã QR để đăng nhập...');
+                
+                if (sessionId) {
+                    updateLoginSession(sessionId, 'generating_qr');
+                }
+                
                 api = await zalo.loginQR(null, (qrData) => {
                     console.log('Đã nhận dữ liệu QR:', qrData ? 'có dữ liệu' : 'không có dữ liệu');
                     if (qrData?.data?.image) {
                         const qrCodeImage = `data:image/png;base64,${qrData.data.image}`;
                         console.log('Đã tạo mã QR, độ dài:', qrCodeImage.length);
+                        
+                        if (sessionId) {
+                            updateLoginSession(sessionId, 'qr_generated');
+                        }
+                        
                         resolve(qrCodeImage);
                     } else {
                         console.error('Không thể lấy mã QR từ Zalo SDK');
+                        
+                        if (sessionId) {
+                            updateLoginSession(sessionId, 'qr_generation_failed');
+                        }
+                        
                         reject(new Error("Không thể lấy mã QR"));
                     }
                 });
@@ -926,6 +1145,11 @@ export async function loginZaloAccount(customProxy, cred) {
 
             api.listener.onConnected(() => {
                 console.log("Zalo SDK đã kết nối");
+                
+                if (sessionId) {
+                    updateLoginSession(sessionId, 'connected');
+                }
+                
                 resolve(true);
             });
 
@@ -940,10 +1164,19 @@ export async function loginZaloAccount(customProxy, cred) {
                 console.log(`Đã cập nhật proxy ${proxyUsed.url} với usedCount = ${proxyUsed.usedCount}`);
             }
 
+            if (sessionId) {
+                updateLoginSession(sessionId, 'fetching_account_info');
+            }
+
             console.log('Đang lấy thông tin tài khoản...');
             const accountInfo = await api.fetchAccountInfo();
             if (!accountInfo?.profile) {
                 console.error('Không tìm thấy thông tin profile trong phản hồi');
+                
+                if (sessionId) {
+                    updateLoginSession(sessionId, 'account_info_failed');
+                }
+                
                 throw new Error("Không tìm thấy thông tin profile");
             }
             const { profile } = accountInfo;
@@ -951,6 +1184,14 @@ export async function loginZaloAccount(customProxy, cred) {
             const ownId = profile.userId;
             const displayName = profile.displayName;
             console.log(`Thông tin tài khoản: ID=${ownId}, Tên=${displayName}, SĐT=${phoneNumber}`);
+
+            if (sessionId) {
+                updateLoginSession(sessionId, 'saving_account_info', {
+                    ownId,
+                    displayName,
+                    phoneNumber
+                });
+            }
 
             const existingAccountIndex = zaloAccounts.findIndex(acc => acc.ownId === api.getOwnId());
             if (existingAccountIndex !== -1) {
@@ -963,6 +1204,10 @@ export async function loginZaloAccount(customProxy, cred) {
                 console.log('Đã thêm tài khoản mới vào danh sách zaloAccounts');
             }
 
+            if (sessionId) {
+                updateLoginSession(sessionId, 'saving_credentials');
+            }
+
             console.log('Đang lưu cookie...');
             const context = await api.getContext();
             const {imei, cookie, userAgent} = context;
@@ -970,30 +1215,204 @@ export async function loginZaloAccount(customProxy, cred) {
                 imei: imei,
                 cookie: cookie,
                 userAgent: userAgent,
+                // Thêm thông tin mới
+                userId: ownId,
+                profile: {
+                    userId: ownId,
+                    displayName: displayName,
+                    phoneNumber: phoneNumber
+                },
+                loginStatus: {
+                    isLoggedIn: true,
+                    lastLoginTime: new Date().toISOString(),
+                    loginMethod: cred ? 'cookie' : 'qr_code'
+                },
+                proxy: useCustomProxy ? customProxy : (proxyUsed?.url || null),
+                user_BE: userId,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
             }
             const cookiesDir = './data/cookies';
             if (!fs.existsSync(cookiesDir)) {
                 fs.mkdirSync(cookiesDir, { recursive: true });
                 console.log('Đã tạo thư mục cookies');
             }
-            fs.access(`${cookiesDir}/cred_${ownId}.json`, fs.constants.F_OK, (err) => {
+            
+            const credFilePath = `${cookiesDir}/cred_${ownId}.json`;
+            
+            // Kiểm tra xem file đã tồn tại chưa để merge thông tin cũ (nếu có)
+            let existingData = {};
+            if (fs.existsSync(credFilePath)) {
+                try {
+                    const existingContent = fs.readFileSync(credFilePath, 'utf8');
+                    existingData = JSON.parse(existingContent);
+                    console.log(`Đã đọc dữ liệu cũ từ file cred_${ownId}.json`);
+                } catch (error) {
+                    console.error('Lỗi khi đọc file credential cũ:', error);
+                }
+            }
+            
+            // Merge dữ liệu mới với dữ liệu cũ (giữ lại createdAt nếu có)
+            const finalData = {
+                ...data,
+                createdAt: existingData.createdAt || data.createdAt,
+                updatedAt: data.updatedAt
+            };
+            
+            // Luôn ghi đè file với thông tin mới nhất
+            fs.writeFile(credFilePath, JSON.stringify(finalData, null, 4), (err) => {
                 if (err) {
-                    fs.writeFile(`${cookiesDir}/cred_${ownId}.json`, JSON.stringify(data, null, 4), (err) => {
-                        if (err) {
-                            console.error('Lỗi khi ghi file cookie:', err);
-                        } else {
-                            console.log(`Đã lưu cookie vào file cred_${ownId}.json`);
-                        }
-                    });
+                    console.error('Lỗi khi ghi file cookie:', err);
+                    
+                    if (sessionId) {
+                        updateLoginSession(sessionId, 'credential_save_failed', { error: err.message });
+                    }
                 } else {
-                    console.log(`File cred_${ownId}.json đã tồn tại, không ghi đè`);
+                    console.log(`Đã cập nhật credential vào file cred_${ownId}.json`);
+                    
+                    if (sessionId) {
+                        updateLoginSession(sessionId, 'completed', {
+                            ownId,
+                            displayName,
+                            phoneNumber,
+                            completedAt: new Date().toISOString()
+                        });
+                    }
                 }
             });
 
             console.log(`Đã đăng nhập vào tài khoản ${ownId} (${displayName}) với số điện thoại ${phoneNumber} qua proxy ${useCustomProxy ? customProxy : (proxyUsed?.url || 'không có proxy')}`);
         } catch (error) {
             console.error('Lỗi trong quá trình đăng nhập Zalo:', error);
+            
+            if (sessionId) {
+                updateLoginSession(sessionId, 'error', {
+                    error: error.message,
+                    errorAt: new Date().toISOString()
+                });
+            }
+            
             reject(error);
         }
     });
+}
+
+// Hàm cập nhật trạng thái credential
+export function updateCredentialStatus(ownId, status, additionalInfo = {}) {
+    const credFilePath = `./data/cookies/cred_${ownId}.json`;
+    
+    if (!fs.existsSync(credFilePath)) {
+        console.error(`File credential không tồn tại: ${credFilePath}`);
+        return false;
+    }
+    
+    try {
+        const existingContent = fs.readFileSync(credFilePath, 'utf8');
+        const credData = JSON.parse(existingContent);
+        
+        // Cập nhật trạng thái
+        credData.loginStatus = {
+            ...credData.loginStatus,
+            isLoggedIn: status === 'online',
+            lastStatusUpdate: new Date().toISOString(),
+            status: status, // 'online', 'offline', 'error', 'expired'
+            ...additionalInfo
+        };
+        credData.updatedAt = new Date().toISOString();
+        
+        // Ghi lại file
+        fs.writeFileSync(credFilePath, JSON.stringify(credData, null, 4));
+        console.log(`Đã cập nhật trạng thái credential cho ${ownId}: ${status}`);
+        return true;
+    } catch (error) {
+        console.error(`Lỗi khi cập nhật credential status cho ${ownId}:`, error);
+        return false;
+    }
+}
+
+// Hàm đọc thông tin credential
+export function getCredentialInfo(ownId) {
+    const credFilePath = `./data/cookies/cred_${ownId}.json`;
+    
+    if (!fs.existsSync(credFilePath)) {
+        return null;
+    }
+    
+    try {
+        const content = fs.readFileSync(credFilePath, 'utf8');
+        return JSON.parse(content);
+    } catch (error) {
+        console.error(`Lỗi khi đọc credential info cho ${ownId}:`, error);
+        return null;
+    }
+}
+
+// API để lấy thông tin credential
+export async function getCredentialInfoAPI(req, res) {
+    try {
+        const { ownId } = req.params;
+        
+        if (!ownId) {
+            return res.status(400).json({ error: 'ownId là bắt buộc' });
+        }
+        
+        const credInfo = getCredentialInfo(ownId);
+        
+        if (!credInfo) {
+            return res.status(404).json({ error: 'Không tìm thấy thông tin credential' });
+        }
+        
+        // Loại bỏ thông tin nhạy cảm trước khi trả về
+        const safeCredInfo = {
+            userId: credInfo.userId,
+            profile: credInfo.profile,
+            loginStatus: credInfo.loginStatus,
+            proxy: credInfo.proxy,
+            createdAt: credInfo.createdAt,
+            updatedAt: credInfo.updatedAt,
+            // Không trả về imei, cookie, userAgent
+        };
+        
+        res.json({
+            success: true,
+            data: safeCredInfo
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
+
+// API để cập nhật trạng thái credential
+export async function updateCredentialStatusAPI(req, res) {
+    try {
+        const { ownId } = req.params;
+        const { status, additionalInfo } = req.body;
+        
+        if (!ownId || !status) {
+            return res.status(400).json({ error: 'ownId và status là bắt buộc' });
+        }
+        
+        const validStatuses = ['online', 'offline', 'error', 'expired'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ 
+                error: `Status không hợp lệ. Cho phép: ${validStatuses.join(', ')}` 
+            });
+        }
+        
+        const success = updateCredentialStatus(ownId, status, additionalInfo);
+        
+        if (success) {
+            res.json({
+                success: true,
+                message: `Đã cập nhật trạng thái credential thành ${status}`
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Không thể cập nhật trạng thái credential'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 }

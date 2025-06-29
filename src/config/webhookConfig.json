@@ -1,14 +1,9 @@
 {
   "default": {
-    "messageWebhookUrl": "",
-    "groupEventWebhookUrl": "",
-    "reactionWebhookUrl": ""
+    "messageWebhookUrl": "http://localhost:3001/api/webhook",
+    "groupEventWebhookUrl": "http://localhost:3001/api/webhook",
+    "reactionWebhookUrl": "http://localhost:3001/api/webhook"
   },
   "accounts": {
-    "771519254123051565": {
-      "messageWebhookUrl": "https://n8n.dieucanbiet.org/webhook-test/zalo-api1",
-      "groupEventWebhookUrl": "https://n8n.dieucanbiet.org/webhook-test/zalo-api-group",
-      "reactionWebhookUrl": "https://n8n.truongkinhdoanhlamdep.com/webhook/zalo-api-reaction-6789"
-    }
   }
 }

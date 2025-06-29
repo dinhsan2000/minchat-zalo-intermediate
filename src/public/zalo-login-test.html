@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Zalo Login API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .qr-code {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .qr-code img {
+            max-width: 300px;
+            border: 1px solid #ddd;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            color: #666;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Zalo Login API</h1>
+    
+    <form id="loginForm">
+        <div class="form-group">
+            <label for="customProxy">Custom Proxy (tùy chọn):</label>
+            <input type="text" id="customProxy" placeholder="http://proxy.example.com:8080">
+            <small>Để trống nếu không muốn sử dụng proxy tùy chỉnh</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="credentialId">Credential ID (tùy chọn):</label>
+            <input type="text" id="credentialId" placeholder="123456789">
+            <small>Nhập ownId nếu muốn đăng nhập bằng cookie đã lưu</small>
+        </div>
+        
+        <button type="submit" id="loginBtn">Đăng nhập Zalo</button>
+    </form>
+    
+    <div class="loading" id="loading">
+        <p>Đang xử lý đăng nhập...</p>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const loginBtn = document.getElementById('loginBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+
+        let currentSessionId = null;
+        let checkInterval = null;
+
+        // Hàm check trạng thái login session
+        async function checkLoginSession(sessionId) {
+            try {
+                const response = await fetch(`/api/login-session/${sessionId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const status = data.data.status;
+                    console.log('Session status:', status, data.data);
+                    
+                    // Cập nhật UI dựa trên status
+                    updateStatusDisplay(status, data.data);
+                    
+                    // Nếu hoàn thành hoặc lỗi, dừng polling
+                    if (status === 'success' || status === 'completed' || status === 'error') {
+                        clearInterval(checkInterval);
+                        loginBtn.disabled = false;
+                        loading.style.display = 'none';
+                        
+                        if (status === 'success' || status === 'completed') {
+                            showSuccessResult(data.data);
+                        } else {
+                            showErrorResult(data.data);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking session:', error);
+            }
+        }
+
+        // Hàm cập nhật hiển thị trạng thái
+        function updateStatusDisplay(status, data) {
+            const statusMessages = {
+                'pending': 'Đang khởi tạo...',
+                'loading_credential': 'Đang đọc thông tin đăng nhập...',
+                'connecting': 'Đang kết nối...',
+                'initializing': 'Đang khởi tạo Zalo SDK...',
+                'proxy_configured': 'Đã cấu hình proxy...',
+                'authenticating': 'Đang xác thực...',
+                'generating_qr': 'Đang tạo mã QR...',
+                'qr_generated': 'Đã tạo mã QR, đang chờ quét...',
+                'waiting_qr_scan': 'Đang chờ quét mã QR...',
+                'connected': 'Đã kết nối thành công!',
+                'fetching_account_info': 'Đang lấy thông tin tài khoản...',
+                'saving_account_info': 'Đang lưu thông tin tài khoản...',
+                'saving_credentials': 'Đang lưu thông tin đăng nhập...',
+                'completed': 'Hoàn thành đăng nhập!',
+                'error': 'Có lỗi xảy ra'
+            };
+            
+            const message = statusMessages[status] || `Trạng thái: ${status}`;
+            loading.innerHTML = `<p>${message}</p>`;
+        }
+
+        // Hàm hiển thị kết quả thành công
+        function showSuccessResult(data) {
+            result.innerHTML = `
+                <div class="result success">
+                    <h3>Đăng nhập thành công!</h3>
+                    <p>${data.message || 'Đã đăng nhập vào Zalo thành công'}</p>
+                    ${data.ownId ? `<p><strong>ID tài khoản:</strong> ${data.ownId}</p>` : ''}
+                    ${data.displayName ? `<p><strong>Tên hiển thị:</strong> ${data.displayName}</p>` : ''}
+                    ${data.phoneNumber ? `<p><strong>Số điện thoại:</strong> ${data.phoneNumber}</p>` : ''}
+                    ${data.totalAccounts ? `<p><strong>Tổng số tài khoản:</strong> ${data.totalAccounts}</p>` : ''}
+                    <p><small>Bạn có thể chuyển sang trang khác hoặc đăng nhập thêm tài khoản.</small></p>
+                </div>
+            `;
+        }
+
+        // Hàm hiển thị kết quả lỗi
+        function showErrorResult(data) {
+            result.innerHTML = `
+                <div class="result error">
+                    <h3>Lỗi đăng nhập</h3>
+                    <p>${data.error || 'Có lỗi không xác định xảy ra'}</p>
+                    <p><small>Vui lòng thử lại hoặc kiểm tra thông tin đăng nhập.</small></p>
+                </div>
+            `;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const customProxy = document.getElementById('customProxy').value.trim();
+            const credentialId = document.getElementById('credentialId').value.trim();
+            
+            // Clear previous results
+            result.innerHTML = '';
+            currentSessionId = null;
+            if (checkInterval) {
+                clearInterval(checkInterval);
+            }
+            
+            // Disable form and show loading
+            loginBtn.disabled = true;
+            loading.style.display = 'block';
+            loading.innerHTML = '<p>Đang gửi yêu cầu đăng nhập...</p>';
+            
+            try {
+                const requestBody = {};
+                if (customProxy) requestBody.customProxy = customProxy;
+                if (credentialId) requestBody.credentialId = credentialId;
+                
+                console.log('Sending request:', requestBody);
+                
+                const response = await fetch('/api/login-zalo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if (data.success && data.sessionId) {
+                    currentSessionId = data.sessionId;
+                    
+                    if (data.type === 'qr_code') {
+                        result.innerHTML = `
+                            <div class="result info">
+                                <h3>Quét mã QR để đăng nhập</h3>
+                                <p><strong>Session ID:</strong> <code>${data.sessionId}</code></p>
+                                <p>${data.data.message}</p>
+                                <div class="qr-code">
+                                    <img src="${data.data.qrCode}" alt="QR Code" />
+                                </div>
+                                <p><small>Mở ứng dụng Zalo trên điện thoại và quét mã QR này để đăng nhập.</small></p>
+                            </div>
+                        `;
+                        
+                        // Bắt đầu polling để check trạng thái
+                        checkInterval = setInterval(() => {
+                            checkLoginSession(currentSessionId);
+                        }, 2000); // Check mỗi 2 giây
+                        
+                    } else if (data.type === 'login_success') {
+                        showSuccessResult(data.data);
+                        loginBtn.disabled = false;
+                        loading.style.display = 'none';
+                    }
+                } else {
+                    result.innerHTML = `
+                        <div class="result error">
+                            <h3>Lỗi đăng nhập</h3>
+                            <p>${data.error}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                    loginBtn.disabled = false;
+                    loading.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Request failed:', error);
+                result.innerHTML = `
+                    <div class="result error">
+                        <h3>Lỗi kết nối</h3>
+                        <p>Không thể gửi request đến server: ${error.message}</p>
+                    </div>
+                `;
+                loginBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

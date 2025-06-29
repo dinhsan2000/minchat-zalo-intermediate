@@ -15,27 +15,22 @@ import { zaloAccounts, loginZaloAccount } from './api/zalo/zalo.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from .env file
-dotenv.config({ path: path.join(__dirname, 'config', '.env') });
 
 const app = express();
 
 // Cấu hình EJS
 app.set('view engine', 'ejs');
 const viewsPath = path.join(__dirname, 'views');
-console.log('Views path:', viewsPath);
 app.set('views', viewsPath);
 
 // Kiểm tra thư mục views
 if (fs.existsSync(viewsPath)) {
-  const files = fs.readdirSync(viewsPath);
-  console.log('Views directory exists. Files:', files);
+  fs.readdirSync(viewsPath);
 } else {
   console.error('Views directory does not exist at', viewsPath);
   // Nếu không tồn tại, thử tạo thư mục
   try {
     fs.mkdirSync(viewsPath, { recursive: true });
-    console.log('Created views directory at', viewsPath);
   } catch (error) {
     console.error('Failed to create views directory:', error);
   }
@@ -43,7 +38,6 @@ if (fs.existsSync(viewsPath)) {
 
 // Tải cấu hình webhook từ file
 loadWebhookConfig();
-console.log("Đã tải cấu hình webhook");
 
 // Thiết lập middleware
 app.use(express.json());
@@ -52,11 +46,9 @@ app.use(cookieParser());
 
 // Thiết lập middleware phục vụ file tĩnh
 app.use(express.static(path.join(__dirname, 'public')));
-console.log('Static files path:', path.join(__dirname, 'public'));
 
 // Định nghĩa SESSION_SECRET từ biến môi trường hoặc mặc định
 const sessionSecret = process.env.SESSION_SECRET || 'zalo-server-secret-key';
-console.log("Using session secret:", sessionSecret ? "Configured properly" : "MISSING SESSION SECRET");
 
 // Thiết lập session với cấu hình rõ ràng hơn
 app.use(session({

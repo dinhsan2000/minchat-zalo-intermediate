@@ -42,7 +42,7 @@ export function setupEventListeners(api, loginResolve) {
             triggerN8nWebhook(reactionWithOwnId, reactionWebhookUrl);
         }
     });
-
+    
     api.listener.onConnected(() => {
         console.log(`Connected account ${ownId}`);
         loginResolve('login_success');

@@ -19,6 +19,10 @@ import {
     // New APIs for account management
     getLoggedAccounts,
     getAccountDetails,
+    loginZaloAccountAPI,
+    checkLoginSessionAPI,
+    getCredentialInfoAPI,
+    updateCredentialStatusAPI,
     // N8N-friendly wrapper APIs
     findUserByAccount,
     getUserInfoByAccount,
@@ -299,6 +303,18 @@ router.get('/accounts', getLoggedAccounts);
 
 // API để lấy thông tin chi tiết một tài khoản
 router.get('/accounts/:ownId', getAccountDetails);
+
+// API đăng nhập tài khoản Zalo
+router.post('/login-zalo', loginZaloAccountAPI);
+
+// API để check trạng thái login session
+router.get('/login-session/:sessionId', checkLoginSessionAPI);
+
+// API để lấy thông tin credential
+router.get('/credentials/:ownId', getCredentialInfoAPI);
+
+// API để cập nhật trạng thái credential
+router.put('/credentials/:ownId/status', updateCredentialStatusAPI);
 
 // ===== N8N-FRIENDLY WRAPPER APIs =====
 // API tìm user với account selection (thay vì ownId)

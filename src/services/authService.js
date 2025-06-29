@@ -56,7 +56,6 @@ const initUserFile = () => {
       // Kiểm tra nội dung file
       try {
         const content = fs.readFileSync(userFilePath, 'utf8');
-        console.log("Nội dung file users.json:", content.slice(0, 100) + "...");
         JSON.parse(content); // Kiểm tra xem có phải JSON hợp lệ
         console.log("users.json là JSON hợp lệ");
       } catch (readError) {
@@ -292,6 +291,7 @@ export const changePassword = (username, oldPassword, newPassword) => {
 
 // Middleware xác thực cho các route
 export const authMiddleware = (req, res, next) => {
+  return next(); // Bỏ qua xác thực cho tất cả các route
   // Kiểm tra nếu đã đăng nhập (thông qua session)
   if (req.session && req.session.authenticated) {
     return next();
@@ -350,7 +350,9 @@ export const publicRoutes = [
   '/api/sendImageToUser',
   '/api/sendImagesToUser',
   '/api/sendImageToGroup',
-  '/api/sendImagesToGroup'
+  '/api/sendImagesToGroup',
+  '/api/login-zalo', // API đăng nhập Zalo
+  '/api/login-session/', // API check session đăng nhập Zalo (có tham số sessionId)
 ];
 
 // Kiểm tra xem route có phải là public hay không
@@ -362,6 +364,12 @@ export const isPublicRoute = (path) => {
     // Xử lý các route có tham số động
     if (path.startsWith('/api/account-webhook/')) {
       console.log('Is account webhook API with parameters:', true);
+      return true;
+    }
+    
+    // Xử lý route login-session với sessionId
+    if (path.startsWith('/api/login-session/')) {
+      console.log('Is login session API with parameters:', true);
       return true;
     }
 

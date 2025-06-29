@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import { zaloAccounts, loginZaloAccount } from '../api/zalo/zalo.js';
 import { proxyService } from '../services/proxyService.js';
 import dotenv from 'dotenv';
-
+import crypto from 'crypto';
 const router = express.Router();
 
 // Dành cho ES Module: xác định __dirname
@@ -45,6 +45,8 @@ router.get('/admin-login', (req, res) => {
 
 // Thêm thông tin session vào trang chủ
 router.get('/', (req, res) => {
+  const hash = crypto.pbkdf2Sync('12345678', 'c9ab9e358a3ca8cefb9c6b944e16953d', 1000, 64, 'sha512').toString('hex');
+  console.log('hash', hash);
     let authenticated = false;
     let username = '';
     let isAdmin = false;
@@ -276,6 +278,15 @@ router.get('/change-password', (req, res) => {
 // Hiển thị trang reset mật khẩu admin
 router.get('/reset-password', (req, res) => {
     res.render('reset-password');
+});
+
+// Test Zalo Login API
+router.get('/zalo-login-test', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'zalo-login-test.html'));
+});
+
+router.get('api/docs', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'api-docs.html'));
 });
 
 export default router;

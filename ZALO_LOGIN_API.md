@@ -27,6 +27,16 @@ GET /api/credentials/:ownId
 PUT /api/credentials/:ownId/status
 ```
 
+### 5. Đăng xuất tài khoản Zalo
+```
+POST /api/logout-zalo
+```
+
+### 6. Kiểm tra trạng thái phiên đăng nhập
+```
+POST /api/session-status
+```
+
 ## Cấu trúc File Credential
 
 Từ phiên bản mới, file credential được lưu với cấu trúc mở rộng bao gồm:
@@ -478,3 +488,89 @@ document.getElementById('login-with-cred-btn').onclick = () => {
 3. **Sử dụng tài khoản**:
    - Dùng các API khác với `ownId` hoặc `accountSelection`
    - Kiểm tra danh sách tài khoản qua `GET /api/accounts`
+
+## Mô tả Chi tiết API
+
+### API: Đăng xuất tài khoản Zalo
+
+**Endpoint**: `POST /api/logout-zalo`
+
+**Mục đích**: Đăng xuất và xóa tài khoản Zalo khỏi server, bao gồm xóa credential file.
+
+**Request Body**:
+```json
+{
+  "ownId": "719042314012359086"
+}
+```
+
+**Response thành công**:
+```json
+{
+  "success": true,
+  "message": "Đăng xuất thành công"
+}
+```
+
+**Response lỗi**:
+```json
+{
+  "error": "Không tìm thấy tài khoản Zalo với OwnId này"
+}
+```
+
+**Ví dụ curl**:
+```bash
+curl -X POST http://localhost:3000/api/logout-zalo \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ownId": "719042314012359086"
+  }'
+```
+
+### API: Kiểm tra trạng thái phiên đăng nhập
+
+**Endpoint**: `POST /api/session-status`
+
+**Mục đích**: Kiểm tra xem tài khoản Zalo có còn hoạt động và kết nối được không bằng cách gọi `getUserInfo`.
+
+**Request Body**:
+```json
+{
+  "ownId": "719042314012359086"
+}
+```
+
+**Response thành công**:
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "719042314012359086",
+    "displayName": "Tên người dùng",
+    "phoneNumber": "0901234567",
+    "avatar": "https://...",
+    "birthday": "1990-01-01",
+    "gender": 1,
+    // Thông tin chi tiết khác từ getUserInfo
+  }
+}
+```
+
+**Response lỗi**:
+```json
+{
+  "error": "Không tìm thấy tài khoản Zalo với OwnId này"
+}
+```
+
+**Ví dụ curl**:
+```bash
+curl -X POST http://localhost:3000/api/session-status \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ownId": "719042314012359086"
+  }'
+```
+
+**Lưu ý**: API này thực sự gọi `getUserInfo(ownId)` để kiểm tra tài khoản còn hoạt động. Nếu gọi thành công, tài khoản vẫn online. Nếu lỗi, có thể tài khoản đã bị logout hoặc có vấn đề kết nối.

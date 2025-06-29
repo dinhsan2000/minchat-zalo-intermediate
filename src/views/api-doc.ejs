@@ -28,10 +28,12 @@
         <li><a href="#loginZalo">loginZalo - Đăng nhập tài khoản Zalo</a></li>
         <li><a href="#getCredentialInfo">getCredentialInfo - Lấy thông tin credential</a></li>
         <li><a href="#updateCredentialStatus">updateCredentialStatus - Cập nhật trạng thái credential</a></li>
+        <li><a href="#logoutZalo">logoutZalo - Đăng xuất tài khoản Zalo</a></li>
+        <li><a href="#sessionStatus">sessionStatus - Kiểm tra trạng thái phiên đăng nhập</a></li>
     </ol>
 
     <h3>🔥 APIs N8N-Friendly (Khuyến nghị)</h3>
-    <ol start="6">
+    <ol start="8">
         <li><a href="#findUserByAccount">findUserByAccount</a></li>
         <li><a href="#getUserInfoByAccount">getUserInfoByAccount</a></li>
         <li><a href="#sendFriendRequestByAccount">sendFriendRequestByAccount</a></li>
@@ -48,7 +50,7 @@
     </ol>
 
     <h3>⚠️ APIs Cũ (Cần ownId)</h3>
-    <ol start="19">
+    <ol start="21">
         <li><a href="#findUser">findUser</a></li>
         <li><a href="#getUserInfo">getUserInfo</a></li>
         <li><a href="#sendFriendRequest">sendFriendRequest</a></li>
@@ -308,11 +310,91 @@ curl -X PUT http://localhost:3000/api/credentials/719042314012359086/status \
 
     <hr/>
 
+    <h3 id="logoutZalo">6. logoutZalo - Đăng xuất tài khoản Zalo</h3>
+    <p><strong>Mục đích:</strong> Đăng xuất và xóa tài khoản Zalo khỏi server.</p>
+    <p><strong>Endpoint:</strong> <span class="endpoint">POST /api/logout-zalo</span></p>
+    <p><strong>Parameters:</strong></p>
+    <table>
+        <tr><th>Field</th><th>Loại</th><th>Mô tả</th><th>Bắt buộc</th></tr>
+        <tr>
+          <td>ownId</td>
+          <td>string</td>
+          <td>ID tài khoản Zalo cần đăng xuất.</td>
+          <td>Có</td>
+        </tr>
+    </table>
+    <p><strong>Response:</strong></p>
+    <pre>
+{
+  "success": true,
+  "message": "Đăng xuất thành công"
+}
+    </pre>
+    <p><strong>Response lỗi:</strong></p>
+    <pre>
+{
+  "error": "Không tìm thấy tài khoản Zalo với OwnId này"
+}
+    </pre>
+    <p><strong>Ví dụ curl:</strong></p>
+    <pre>
+curl -X POST http://localhost:3000/api/logout-zalo \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ownId": "719042314012359086"
+  }'
+    </pre>
+
+    <hr/>
+
+    <h3 id="sessionStatus">7. sessionStatus - Kiểm tra trạng thái phiên đăng nhập</h3>
+    <p><strong>Mục đích:</strong> Kiểm tra xem tài khoản Zalo có còn hoạt động và kết nối được không.</p>
+    <p><strong>Endpoint:</strong> <span class="endpoint">POST /api/session-status</span></p>
+    <p><strong>Parameters:</strong></p>
+    <table>
+        <tr><th>Field</th><th>Loại</th><th>Mô tả</th><th>Bắt buộc</th></tr>
+        <tr>
+          <td>ownId</td>
+          <td>string</td>
+          <td>ID tài khoản Zalo cần kiểm tra.</td>
+          <td>Có</td>
+        </tr>
+    </table>
+    <p><strong>Response thành công:</strong></p>
+    <pre>
+{
+  "success": true,
+  "data": {
+    "userId": "719042314012359086",
+    "displayName": "Tên người dùng",
+    "phoneNumber": "0901234567",
+    "avatar": "https://...",
+    // Thông tin chi tiết khác từ getUserInfo
+  }
+}
+    </pre>
+    <p><strong>Response lỗi:</strong></p>
+    <pre>
+{
+  "error": "Không tìm thấy tài khoản Zalo với OwnId này"
+}
+    </pre>
+    <p><strong>Ví dụ curl:</strong></p>
+    <pre>
+curl -X POST http://localhost:3000/api/session-status \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ownId": "719042314012359086"
+  }'
+    </pre>
+
+    <hr/>
+
     <!-- ===== N8N-FRIENDLY APIs ===== -->
     <h2>🔥 APIs N8N-Friendly (Khuyến nghị sử dụng)</h2>
     <p><strong>Lưu ý:</strong> Các APIs này sử dụng <code>accountSelection</code> thay vì <code>ownId</code>, giúp dễ dàng sử dụng từ n8n workflows.</p>
 
-    <h3 id="findUserByAccount">6. findUserByAccount</h3>
+    <h3 id="findUserByAccount">8. findUserByAccount</h3>
     <p><strong>Mục đích:</strong> Tìm kiếm người dùng dựa trên số điện thoại với account selection.</p>
     <p><strong>Endpoint:</strong> <span class="endpoint">POST /api/findUserByAccount</span></p>
     <p><strong>Parameters:</strong></p>

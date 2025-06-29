@@ -36,7 +36,9 @@ import {
     sendImageToUserByAccount,
     sendImagesToUserByAccount,
     sendImageToGroupByAccount,
-    sendImagesToGroupByAccount
+    sendImagesToGroupByAccount,
+    logoutAccount,
+    checkSessionAccount
 } from '../api/zalo/zalo.js';
 import { validateUser, adminMiddleware, addUser, getAllUsers, changePassword } from '../services/authService.js';
 import {
@@ -316,6 +318,12 @@ router.get('/credentials/:ownId', getCredentialInfoAPI);
 // API để cập nhật trạng thái credential
 router.put('/credentials/:ownId/status', updateCredentialStatusAPI);
 
+// API logout tài khoản Zalo
+router.post('/logout-zalo', logoutAccount);
+
+// API để lấy thông tin tài khoản còn đăng nhập không
+router.post('/session-status', checkSessionAccount);
+
 // ===== N8N-FRIENDLY WRAPPER APIs =====
 // API tìm user với account selection (thay vì ownId)
 router.post('/findUserByAccount', findUserByAccount);
@@ -460,17 +468,6 @@ router.post('/test-login', (req, res) => {
       error: error.message
     });
   }
-});
-
-// API test JSON đơn giản
-router.post('/test-json', (req, res) => {
-  // Trả về chính xác request body được gửi lên
-  res.setHeader('Content-Type', 'application/json');
-  return res.json({
-    success: true,
-    message: 'Test JSON thành công',
-    receivedData: req.body || null
-  });
 });
 
 // API quản lý webhook URLs theo số điện thoại

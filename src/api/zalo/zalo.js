@@ -1416,3 +1416,54 @@ export async function updateCredentialStatusAPI(req, res) {
         res.status(500).json({ success: false, error: error.message });
     }
 }
+
+export async function logoutAccount(req, res) {
+    try {
+        const { ownId } = req.body;
+        if (!ownId) {
+            return res.status(400).json({ error: 'ownId là bắt buộc' });
+        }
+
+        const accountIndex = zaloAccounts.findIndex(acc => acc.ownId === ownId);
+        if (accountIndex === -1) {
+            return res.status(404).json({ error: 'Không tìm thấy tài khoản Zalo với OwnId này' });
+        }
+
+        // Xóa tài khoản khỏi danh sách zaloAccounts
+        zaloAccounts.splice(accountIndex, 1);
+
+        // Xóa file credential nếu có
+        const credFilePath = `./data/cookies/cred_${ownId}.json`;
+        if (fs.existsSync(credFilePath)) {
+            fs.unlinkSync(credFilePath);
+            console.log(`Đã xóa file credential cho tài khoản ${ownId}`);
+        }
+
+        res.json({ success: true, message: 'Đăng xuất thành công' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
+
+export async function checkSessionAccount(req, res) {
+    try {
+        const { ownId, userId } = req.body;
+        if (!ownId) {
+            return res.status(400).json({ error: 'ownId là bắt buộc' });
+        }
+
+        const account = zaloAccounts.find(acc => acc.ownId === ownId);
+        console.log(account)
+        if (!account) {
+            return res.status(404).json({ error: 'Không tìm thấy tài khoản Zalo với OwnId này' });
+        }
+
+        const result = await account.api.getUserInfo(userId);
+        console.log(`Trạng thái tài khoản ${ownId}:`, result);
+        res.json({ success: true, data: result });
+
+    } catch (error) {
+        console.error('Lỗi trong quá trình kiểm tra trạng thái tài khoản:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+}

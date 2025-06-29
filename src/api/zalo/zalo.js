@@ -1489,7 +1489,7 @@ export async function logoutAccount(req, res) {
 
 export async function checkSessionAccount(req, res) {
     try {
-        const { ownId, userId } = req.body;
+        const { ownId } = req.body;
         if (!ownId) {
             return res.status(400).json({ error: 'ownId là bắt buộc' });
         }
@@ -1499,6 +1499,7 @@ export async function checkSessionAccount(req, res) {
         if (!account) {
             return res.status(404).json({ error: 'Không tìm thấy tài khoản Zalo với OwnId này' });
         }
+        const userId = ownId;
 
         const result = await account.api.getUserInfo(userId);
         console.log(`Trạng thái tài khoản ${ownId}:`, result);

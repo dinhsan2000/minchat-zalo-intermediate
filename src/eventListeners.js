@@ -3,15 +3,22 @@ import { getWebhookUrl, triggerN8nWebhook } from './utils/helpers.js';
 import fs from 'fs';
 import { loginZaloAccount, zaloAccounts } from './api/zalo/zalo.js';
 import { broadcastMessage } from './server.js';
+import axios from "axios";
 
 // Biến để theo dõi thời gian relogin cho từng tài khoản
 export const reloginAttempts = new Map();
 // Thời gian tối thiểu giữa các lần thử relogin (5 phút)
 const RELOGIN_COOLDOWN = 5 * 60 * 1000;
 
-export function setupEventListeners(api, loginResolve) {
+export function setupEventListeners(api, loginResolve, dataSend = null) {
+    console.log("Thiết lập các sự kiện lắng nghe cho API Zalo...");
+
     const ownId = api.getOwnId();
-    
+    let accountInfo = null;
+    api.fetchAccountInfo().then(info => {
+        accountInfo = info;
+    });
+
     // Lắng nghe sự kiện tin nhắn và gửi đến webhook được cấu hình cho tin nhắn
     api.listener.on("message", (msg) => {
         const messageWebhookUrl = getWebhookUrl("messageWebhookUrl", ownId);
@@ -47,9 +54,16 @@ export function setupEventListeners(api, loginResolve) {
         console.log(`Connected account ${ownId}`);
         loginResolve('login_success');
         
+        let dataZalo = {
+            ownId: ownId,
+            accountInfo: accountInfo || {},
+            status: 'connected',
+            user_BE_Id: dataSend?.user_BE_Id || null
+        }
+
         // Gửi thông báo đến tất cả client
         try {
-            broadcastMessage('login_success');
+            broadcastMessage('login_success', dataZalo);
         } catch (err) {
             console.error('Lỗi khi gửi thông báo WebSocket:', err);
         }

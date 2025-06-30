@@ -30,9 +30,7 @@ let webhookConfig = defaultConfig;
 
 // Hàm đọc cấu hình webhook từ file
 export function loadWebhookConfig() {
-    try {
-        console.log(`Đang tải cấu hình webhook từ ${webhookConfigPath}`);
-        
+    try {        
         // Kiểm tra thư mục có tồn tại
         const dir = path.dirname(webhookConfigPath);
         if (!fs.existsSync(dir)) {
@@ -40,14 +38,10 @@ export function loadWebhookConfig() {
             console.log(`Đã tạo thư mục ${dir}`);
         }
         
-        if (fs.existsSync(webhookConfigPath)) {
-            console.log(`File cấu hình webhook tồn tại: ${webhookConfigPath}`);
-            
+        if (fs.existsSync(webhookConfigPath)) {            
             // Kiểm tra quyền đọc file
             try {
-                const stats = fs.statSync(webhookConfigPath);
-                console.log(`File cấu hình kích thước: ${stats.size} bytes`);
-                
+                const stats = fs.statSync(webhookConfigPath);                
                 if (stats.size === 0) {
                     console.warn("File cấu hình rỗng, sử dụng cấu hình mặc định");
                     saveWebhookConfig();
@@ -60,7 +54,6 @@ export function loadWebhookConfig() {
             try {
                 const configData = fs.readFileSync(webhookConfigPath, 'utf8');
                 webhookConfig = JSON.parse(configData);
-                console.log("Đã tải cấu hình webhook thành công");
                 
                 // Đảm bảo cấu trúc dữ liệu đúng
                 if (!webhookConfig.default) {

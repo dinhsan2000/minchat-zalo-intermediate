@@ -159,7 +159,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ proxy: proxyValue })
+                body: JSON.stringify({ proxy: proxyValue, userBEId: 1 }) // userBEId có thể được thay đổi nếu cần
             })
             .then(response => {
                 if (!response.ok) {
@@ -224,8 +224,20 @@
                 
                 socket.onmessage = function(event) {
                     console.log('Nhận tin nhắn WebSocket:', event.data);
-                    
-                    if (event.data === 'login_success') {
+                    console.log('Dữ liệu nhận được:', event.data, 'typeof:', typeof event.data);
+                    // Kiểm tra nếu dữ liệu là chuỗi JSON
+                    let data = null;
+                    if (typeof event.data === 'string') {
+                        try {
+                            data = JSON.parse(event.data);
+                            console.log('Dữ liệu JSON:', data);
+                        } catch (e) {
+                            console.error('Lỗi khi phân tích dữ liệu JSON:', e);
+                            return;
+                        }
+                    }
+
+                    if (data.message === 'login_success') {
                         const statusMessage = document.getElementById('status-message');
                         statusMessage.className = 'status success';
                         statusMessage.innerHTML = 'Đăng nhập thành công! Đang chuyển hướng về trang chủ trong <span id="countdown">3</span> giây...';

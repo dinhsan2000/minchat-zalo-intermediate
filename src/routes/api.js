@@ -19,8 +19,6 @@ import {
     // New APIs for account management
     getLoggedAccounts,
     getAccountDetails,
-    loginZaloAccountAPI,
-    checkLoginSessionAPI,
     getCredentialInfoAPI,
     updateCredentialStatusAPI,
     // N8N-friendly wrapper APIs
@@ -38,7 +36,8 @@ import {
     sendImageToGroupByAccount,
     sendImagesToGroupByAccount,
     logoutAccount,
-    checkSessionAccount
+    checkSessionAccount,
+    loginZaloAccount
 } from '../api/zalo/zalo.js';
 import { validateUser, adminMiddleware, addUser, getAllUsers, changePassword } from '../services/authService.js';
 import {
@@ -305,12 +304,23 @@ router.get('/accounts', getLoggedAccounts);
 
 // API để lấy thông tin chi tiết một tài khoản
 router.get('/accounts/:ownId', getAccountDetails);
+ 
+router.post('/login-zalo', async (req, res) => {
+    try {
+        console.log('Nhận yêu cầu tạo mã QR với dữ liệu:', req.body);
+        const { proxy, ownId, userBEId } = req.body;
+        console.log('Đang tạo mã QR với proxy:', proxy || 'không có proxy');
 
-// API đăng nhập tài khoản Zalo
-router.post('/login-zalo', loginZaloAccountAPI);
+        const cred = ownId;
+        const qrCodeImage = await loginZaloAccount(proxy, cred, userBEId);
+        console.log('Đã tạo mã QR thành công, độ dài:', qrCodeImage ? qrCodeImage.length : 0);
 
-// API để check trạng thái login session
-router.get('/login-session/:sessionId', checkLoginSessionAPI);
+        res.json({ success: true, qrCodeImage });
+    } catch (error) {
+        console.error('Lỗi khi tạo mã QR:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // API để lấy thông tin credential
 router.get('/credentials/:ownId', getCredentialInfoAPI);

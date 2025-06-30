@@ -3,6 +3,7 @@ import http from 'http';
 import { WebSocketServer } from 'ws';
 import app from './app.js';
 import dotenv from 'dotenv';
+import axios from 'axios';
 
 // Load environment variables từ file .env
 dotenv.config();
@@ -32,10 +33,30 @@ wss.on('connection', (ws) => {
 });
 
 // Hàm gửi thông báo đến tất cả client WebSocket
-export function broadcastMessage(message) {
+export function broadcastMessage(message, data = null) {
+  let loginUrlCallback = process.env.LOGIN_CALLBACK_URL;
+
   webSocketClients.forEach((client) => {
+    data.message = message; // Gắn message vào data nếu có
+    if (typeof data === 'object') {
+      data = { ...data };
+    } else {
+      data = { message }; 
+    }
+
+    // Kiểm tra trạng thái kết nối trước khi gửi
     if (client.readyState === 1) { // 1 = OPEN
-      client.send(message);
+      client.send(data ? JSON.stringify(data) : message);
+      if (data.message === 'login_success' && loginUrlCallback) {
+        // Gửi thông tin đăng nhập đến callback URL
+        axios.post(loginUrlCallback, data)
+          .then(response => {
+            console.log('Thông tin đăng nhập đã được gửi đến callback URL:', response.data);
+          })
+          .catch(error => {
+            console.error('Lỗi khi gửi thông tin đăng nhập đến callback URL:', error);
+          });
+      }
     }
   });
 }

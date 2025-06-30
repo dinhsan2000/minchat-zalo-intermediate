@@ -9,25 +9,18 @@ const __dirname = path.dirname(__filename);
 
 // Đường dẫn đến file lưu thông tin đăng nhập
 const userFilePath = path.join(process.cwd(), 'data', 'cookies', 'users.json');
-console.log("Path to users.json:", userFilePath); // Log để debug
 
 // Tạo file users.json nếu chưa tồn tại
 const initUserFile = () => {
   try {
-    console.log("Khởi tạo file người dùng...");
-
     // Kiểm tra và tạo thư mục cookies nếu chưa tồn tại
     const cookiesDir = path.join(process.cwd(), 'data', 'cookies');
     if (!fs.existsSync(cookiesDir)) {
-      console.log("Thư mục cookies không tồn tại, đang tạo...");
       fs.mkdirSync(cookiesDir, { recursive: true });
       console.log("Đã tạo thư mục cookies thành công");
     } else {
       console.log("Thư mục cookies đã tồn tại");
     }
-
-    // Đường dẫn đầy đủ đến file users.json
-    console.log("Đường dẫn file users.json:", userFilePath);
 
     // Kiểm tra file users.json
     if (!fs.existsSync(userFilePath)) {
@@ -47,8 +40,6 @@ const initUserFile = () => {
 
       // Tạo file users.json
       const jsonData = JSON.stringify(users, null, 2);
-      console.log("Dữ liệu JSON sẽ được ghi:", jsonData);
-
       fs.writeFileSync(userFilePath, jsonData);
       console.log('Đã tạo file users.json với tài khoản mặc định: admin/admin');
     } else {
@@ -60,7 +51,6 @@ const initUserFile = () => {
         console.log("users.json là JSON hợp lệ");
       } catch (readError) {
         console.error("Lỗi khi đọc/phân tích file users.json:", readError);
-        // Nếu file không đúng định dạng JSON, tạo lại
         const defaultPassword = 'admin';
         const salt = crypto.randomBytes(16).toString('hex');
         const hash = crypto.pbkdf2Sync(defaultPassword, salt, 1000, 64, 'sha512').toString('hex');
@@ -73,7 +63,6 @@ const initUserFile = () => {
         }];
 
         fs.writeFileSync(userFilePath, JSON.stringify(users, null, 2));
-        console.log('Đã tạo lại file users.json với tài khoản mặc định: admin/admin');
       }
     }
   } catch (error) {

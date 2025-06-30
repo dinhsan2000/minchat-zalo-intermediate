@@ -37,7 +37,8 @@ import {
     sendImagesToGroupByAccount,
     logoutAccount,
     checkSessionAccount,
-    loginZaloAccount
+    loginZaloAccount,
+    getAllFriends
 } from '../api/zalo/zalo.js';
 import { validateUser, adminMiddleware, addUser, getAllUsers, changePassword } from '../services/authService.js';
 import {
@@ -713,5 +714,8 @@ router.all('/reset-admin-password', (req, res) => {
         });
     }
 });
+
+// API lấy danh sách bạn bè của người dùng
+router.post('/getFriendsList', getAllFriends);
 
 export default router;

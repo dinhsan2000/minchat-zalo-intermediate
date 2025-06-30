@@ -1189,3 +1189,25 @@ export async function checkSessionAccount(req, res) {
         res.status(500).json({ success: false, error: error.message });
     }
 }
+
+export async function getAllFriends(req, res) {
+    try {
+        const { ownId } = req.body;
+        if (!ownId) {
+            return res.status(400).json({ error: 'ownId là bắt buộc' });
+        }
+        console.log('Lấy danh sách bạn bè cho tài khoản Zalo với OwnId:', ownId);
+        console.log('Danh sách tài khoản Zalo hiện có:', zaloAccounts);
+
+        const account = zaloAccounts.find(acc => acc.ownId === ownId);
+        if (!account) {
+            return res.status(404).json({ error: 'Không tìm thấy tài khoản Zalo với OwnId này' });
+        }
+
+        const friends = await account.api.getAllFriends();
+        res.json({ success: true, data: friends });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+    
+}

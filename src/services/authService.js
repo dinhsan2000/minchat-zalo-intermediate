@@ -149,20 +149,7 @@ export const validateUser = (username, password) => {
     return null;
   }
 
-  console.log(`Found user: ${user.username}, role: ${user.role}`);
-  console.log(`User's salt: ${user.salt.substring(0, 10)}...`);
-  console.log(`User's hash: ${user.hash.substring(0, 10)}...`);
-
-  console.log(`Password: ${password}`);
-  console.log(`Salt: ${user.salt}`);
-
   const hash = crypto.pbkdf2Sync(password, user.salt, 1000, 64, 'sha512').toString('hex');
-  console.log(`Generated hash from provided password: ${hash.substring(0, 10)}...`);
-  console.log(`User's hash from database: ${user.hash.substring(0, 10)}...`);
-  console.log(`Full generated hash: ${hash}`);
-  console.log(`Full user's hash: ${user.hash}`);
-  console.log(`Hash comparison: ${user.hash === hash ? 'MATCH' : 'NO MATCH'}`);
-  console.log(`Hash length comparison: Generated=${hash.length}, Stored=${user.hash.length}`);
 
   if (user.hash === hash) {
     console.log('Authentication successful');
@@ -201,13 +188,8 @@ export const changePassword = (username, oldPassword, newPassword) => {
   }
 
   const user = users[userIndex];
-  console.log(`Found user: ${user.username}, role: ${user.role}`);
-  console.log(`User's current salt: ${user.salt.substring(0, 10)}...`);
-  console.log(`User's current hash: ${user.hash.substring(0, 10)}...`);
 
   const hash = crypto.pbkdf2Sync(oldPassword, user.salt, 1000, 64, 'sha512').toString('hex');
-  console.log(`Generated hash from old password: ${hash.substring(0, 10)}...`);
-  console.log(`Hash comparison: ${user.hash === hash ? 'MATCH' : 'NO MATCH'}`);
 
   if (user.hash !== hash) {
     console.log('Old password verification failed');
@@ -216,12 +198,7 @@ export const changePassword = (username, oldPassword, newPassword) => {
 
   // Cập nhật mật khẩu mới
   const salt = crypto.randomBytes(16).toString('hex');
-  console.log(`Generated new salt: ${salt.substring(0, 10)}...`);
-
   const newHash = crypto.pbkdf2Sync(newPassword, salt, 1000, 64, 'sha512').toString('hex');
-  console.log(`Generated new hash: ${newHash.substring(0, 10)}...`);
-  console.log(`Full new hash: ${newHash}`);
-  console.log(`New hash length: ${newHash.length}`);
 
   // Lưu trực tiếp vào biến users
   users[userIndex].salt = salt;
@@ -233,23 +210,17 @@ export const changePassword = (username, oldPassword, newPassword) => {
   try {
     // Tạo đường dẫn tạm thời để ghi file
     const tempFilePath = path.join(process.cwd(), 'data', 'cookies', 'users.json.tmp');
-    console.log(`Using temporary file path: ${tempFilePath}`);
 
     const jsonData = JSON.stringify(users, null, 2);
-    console.log(`Writing to temporary file: ${tempFilePath}`);
-    console.log(`JSON data to write (first 100 chars): ${jsonData.substring(0, 100)}...`);
 
     // Ghi vào file tạm thời trước
     fs.writeFileSync(tempFilePath, jsonData, { encoding: 'utf8', flag: 'w' });
-    console.log('Temporary file written successfully');
 
     // Kiểm tra file tạm thời đã được ghi đúng chưa
     const tempFileContent = fs.readFileSync(tempFilePath, 'utf8');
-    console.log(`Temporary file content (first 100 chars): ${tempFileContent.substring(0, 100)}...`);
 
     // Di chuyển file tạm thời thành file chính thức
     fs.renameSync(tempFilePath, userFilePath);
-    console.log(`Renamed temporary file to: ${userFilePath}`);
 
     // Verify the file was written correctly
     const verifyUsers = getUsers();
@@ -259,11 +230,6 @@ export const changePassword = (username, oldPassword, newPassword) => {
       console.error('Verification failed - user not found after password change');
       return false;
     }
-
-    console.log(`Verification - New salt: ${verifyUser.salt.substring(0, 10)}...`);
-    console.log(`Verification - New hash: ${verifyUser.hash.substring(0, 10)}...`);
-    console.log(`Verification - Salt matches: ${verifyUser.salt === salt ? 'YES' : 'NO'}`);
-    console.log(`Verification - Hash matches: ${verifyUser.hash === newHash ? 'YES' : 'NO'}`);
 
     if (verifyUser.salt !== salt || verifyUser.hash !== newHash) {
       console.error('Verification failed - salt or hash mismatch after password change');
@@ -341,24 +307,19 @@ export const publicRoutes = [
   '/api/sendImageToGroup',
   '/api/sendImagesToGroup',
   '/api/login-zalo', // API đăng nhập Zalo
-  '/api/login-session/', // API check session đăng nhập Zalo (có tham số sessionId)
 ];
 
 // Kiểm tra xem route có phải là public hay không
 export const isPublicRoute = (path) => {
-  console.log('Checking if route is public:', path);
-
   // Kiểm tra các route API công khai
   if (path.startsWith('/api/')) {
     // Xử lý các route có tham số động
     if (path.startsWith('/api/account-webhook/')) {
-      console.log('Is account webhook API with parameters:', true);
       return true;
     }
     
     // Xử lý route login-session với sessionId
     if (path.startsWith('/api/login-session/')) {
-      console.log('Is login session API with parameters:', true);
       return true;
     }
 
@@ -368,12 +329,9 @@ export const isPublicRoute = (path) => {
         path === route || // Trùng khớp chính xác
         (route.endsWith('/') && path.startsWith(route)) // Route kết thúc bằng / và path bắt đầu bằng route
       )) {
-        console.log('Is public API route:', true);
         return true;
       }
     }
-
-    console.log('Is public API route:', false);
     return false;
   }
 
@@ -384,17 +342,13 @@ export const isPublicRoute = (path) => {
 
     // Kiểm tra exact match
     if (path === route) {
-      console.log('Is public UI route (exact match):', true);
       return true;
     }
 
     // Kiểm tra prefix match cho routes như /route/*
     if (route.endsWith('*') && path.startsWith(route.slice(0, -1))) {
-      console.log('Is public UI route (prefix match):', true);
       return true;
     }
   }
-
-  console.log('Is public route:', false);
   return false;
 };

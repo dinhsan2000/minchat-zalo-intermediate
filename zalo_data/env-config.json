@@ -1,0 +1,6 @@
+{
+  "MESSAGE_WEBHOOK_URL": "http://localhost:3001/api/webhookb",
+  "GROUP_EVENT_WEBHOOK_URL": "http://localhost:3001/api/webhook",
+  "REACTION_WEBHOOK_URL": "http://localhost:3001/api/webhook",
+  "LOGIN_CALLBACK_URL": "http://localhost:3001/api/webhook"
+}

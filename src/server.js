@@ -4,9 +4,17 @@ import { WebSocketServer } from 'ws';
 import app from './app.js';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import envConfigService from './services/envConfigService.js';
 
 // Load environment variables từ file .env
 dotenv.config();
+
+// Load và set các config từ JSON vào process.env
+const envConfig = envConfigService.getAll();
+Object.keys(envConfig).forEach(key => {
+    process.env[key] = envConfig[key];
+    console.log(`✓ Set ${key} = ${envConfig[key]}`);
+});
 
 const PORT = process.env.PORT || 3000;
 

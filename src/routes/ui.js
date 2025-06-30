@@ -4,8 +4,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { zaloAccounts, loginZaloAccount } from '../api/zalo/zalo.js';
 import { proxyService } from '../services/proxyService.js';
+import envConfigService from '../services/envConfigService.js';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import { adminMiddleware } from '../services/authService.js';
 const router = express.Router();
 
 // Dành cho ES Module: xác định __dirname
@@ -287,6 +289,186 @@ router.get('/zalo-login-test', (req, res) => {
 
 router.get('api/docs', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'api-docs.html'));
+});
+
+router.get('/setting-manager', (req, res) => {
+    // Kiểm tra xem người dùng đã đăng nhập và có quyền admin chưa
+    if (!req.session || !req.session.authenticated || req.session.role !== 'admin') {
+        return res.redirect('/admin-login');
+    }
+
+    // Lấy cấu hình hiện tại để truyền vào view
+    const config = envConfigService.getAll();
+    res.render('setting-manager', { config });
+});
+
+
+// API quản lý cấu hình environment
+const CONFIG_FILE_PATH = path.join(process.cwd(), 'zalo_data', 'env-config.json');
+
+// Hàm tiện ích để đọc cấu hình
+function readEnvConfig() {
+    try {
+        if (fs.existsSync(CONFIG_FILE_PATH)) {
+            const data = fs.readFileSync(CONFIG_FILE_PATH, 'utf8');
+            return JSON.parse(data);
+        }
+        // Trả về cấu hình mặc định nếu file không tồn tại
+        return {
+            MESSAGE_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
+            GROUP_EVENT_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
+            REACTION_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
+            LOGIN_CALLBACK_URL: 'http://localhost:3001/api/webhook'
+        };
+    } catch (error) {
+        console.error('Error reading env config:', error);
+        return {
+            MESSAGE_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
+            GROUP_EVENT_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
+            REACTION_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
+            LOGIN_CALLBACK_URL: 'http://localhost:3001/api/webhook'
+        };
+    }
+}
+
+// Hàm tiện ích để ghi cấu hình
+function writeEnvConfig(config) {
+    try {
+        // Đảm bảo thư mục tồn tại
+        const dir = path.dirname(CONFIG_FILE_PATH);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(config, null, 2), 'utf8');
+        return true;
+    } catch (error) {
+        console.error('Error writing env config:', error);
+        return false;
+    }
+}
+
+// API lấy cấu hình environment
+router.get('/config/env', adminMiddleware, (req, res) => {
+    try {
+        const config = readEnvConfig();
+        res.json(config);
+    } catch (error) {
+        console.error('Error getting env config:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Không thể đọc cấu hình environment',
+            details: error.message
+        });
+    }
+});
+
+// API lưu cấu hình environment
+router.post('/config/env', adminMiddleware, (req, res) => {
+    try {
+        const config = req.body;
+        
+        // Validate required fields
+        const requiredFields = ['MESSAGE_WEBHOOK_URL', 'GROUP_EVENT_WEBHOOK_URL', 'REACTION_WEBHOOK_URL', 'LOGIN_CALLBACK_URL'];
+        const missingFields = requiredFields.filter(field => !config[field]);
+        
+        if (missingFields.length > 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Thiếu các trường bắt buộc',
+                missingFields
+            });
+        }
+        
+        // Validate URL format
+        const urlFields = ['MESSAGE_WEBHOOK_URL', 'GROUP_EVENT_WEBHOOK_URL', 'REACTION_WEBHOOK_URL', 'LOGIN_CALLBACK_URL'];
+        const invalidUrls = [];
+        
+        urlFields.forEach(field => {
+            try {
+                new URL(config[field]);
+            } catch (error) {
+                invalidUrls.push(field);
+            }
+        });
+        
+        if (invalidUrls.length > 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Định dạng URL không hợp lệ',
+                invalidUrls
+            });
+        }
+        
+        // Save config
+        const success = writeEnvConfig(config);
+        
+        if (success) {
+            // Tự động sync với process.env
+            Object.keys(config).forEach(key => {
+                process.env[key] = config[key];
+            });
+            console.log('✓ Đã sync cấu hình với process.env');
+            
+            res.json({
+                success: true,
+                message: 'Lưu cấu hình thành công',
+                config
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Không thể lưu cấu hình'
+            });
+        }
+    } catch (error) {
+        console.error('Error saving env config:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Lỗi server khi lưu cấu hình',
+            details: error.message
+        });
+    }
+});
+
+// API khôi phục cấu hình mặc định
+router.post('/config/env/reset', adminMiddleware, (req, res) => {
+    try {
+        const defaultConfig = {
+            MESSAGE_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
+            GROUP_EVENT_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
+            REACTION_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
+            LOGIN_CALLBACK_URL: 'http://localhost:3001/api/webhook'
+        };
+        
+        const success = writeEnvConfig(defaultConfig);
+        
+        if (success) {
+            // Tự động sync với process.env
+            Object.keys(defaultConfig).forEach(key => {
+                process.env[key] = defaultConfig[key];
+            });
+            console.log('✓ Đã sync cấu hình mặc định với process.env');
+            
+            res.json({
+                success: true,
+                message: 'Khôi phục cấu hình mặc định thành công',
+                config: defaultConfig
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Không thể khôi phục cấu hình mặc định'
+            });
+        }
+    } catch (error) {
+        console.error('Error resetting env config:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Lỗi server khi khôi phục cấu hình',
+            details: error.message
+        });
+    }
 });
 
 export default router;

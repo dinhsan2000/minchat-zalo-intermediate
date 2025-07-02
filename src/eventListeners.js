@@ -14,10 +14,6 @@ export function setupEventListeners(api, loginResolve, dataSend = null) {
     console.log("Thiết lập các sự kiện lắng nghe cho API Zalo...");
 
     const ownId = api.getOwnId();
-    let accountInfo = null;
-    api.fetchAccountInfo().then(info => {
-        accountInfo = info;
-    });
 
     // Lắng nghe sự kiện tin nhắn và gửi đến webhook được cấu hình cho tin nhắn
     api.listener.on("message", (msg) => {
@@ -56,7 +52,6 @@ export function setupEventListeners(api, loginResolve, dataSend = null) {
         
         let dataZalo = {
             ownId: ownId,
-            accountInfo: accountInfo || {},
             status: 'connected',
             user_BE_Id: dataSend?.user_BE_Id || null
         }

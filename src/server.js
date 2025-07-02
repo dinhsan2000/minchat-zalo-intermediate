@@ -56,7 +56,6 @@ export function broadcastMessage(message, data = null) {
     if (client.readyState === 1) { // 1 = OPEN
       client.send(data ? JSON.stringify(data) : message);
       if (data.message === 'login_success' && loginUrlCallback) {
-        // Gửi thông tin đăng nhập đến callback URL
         axios.post(loginUrlCallback, data)
           .then(response => {
             console.log('Thông tin đăng nhập đã được gửi đến callback URL:', response.data);

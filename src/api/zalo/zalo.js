@@ -946,6 +946,7 @@ export async function loginZaloAccount(customProxy, cred, userBEId = null) {
 
             console.log('Đang lấy thông tin tài khoản...');
             const accountInfo = await api.fetchAccountInfo();
+            console.log('Đã lấy thông tin tài khoản:', accountInfo);
             if (!accountInfo?.profile) {
                 console.error('Không tìm thấy thông tin profile trong phản hồi');
                 throw new Error("Không tìm thấy thông tin profile");
@@ -954,6 +955,7 @@ export async function loginZaloAccount(customProxy, cred, userBEId = null) {
             const phoneNumber = profile.phoneNumber;
             const ownId = profile.userId;
             const displayName = profile.displayName;
+            const avatar = profile.avatar || null;
             console.log(`Thông tin tài khoản: ID=${ownId}, Tên=${displayName}, SĐT=${phoneNumber}`);
 
             const existingAccountIndex = zaloAccounts.findIndex(acc => acc.ownId === api.getOwnId());
@@ -979,7 +981,8 @@ export async function loginZaloAccount(customProxy, cred, userBEId = null) {
                 profile: {
                     userId: ownId,
                     displayName: displayName,
-                    phoneNumber: phoneNumber
+                    phoneNumber: phoneNumber,
+                    avatar: avatar || null
                 },
                 loginStatus: {
                     isLoggedIn: true,
@@ -1096,7 +1099,7 @@ export async function getCredentialInfoAPI(req, res) {
         
         res.json({
             success: true,
-            data: safeCredInfo
+            data: credInfo
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -1210,4 +1213,25 @@ export async function getAllFriends(req, res) {
         res.status(500).json({ success: false, error: error.message });
     }
     
+}
+
+export async function getAllGroups(req, res) {
+    try {
+        const { ownId } = req.body;
+        if (!ownId) {
+            return res.status(400).json({ error: 'ownId là bắt buộc' });
+        }
+        console.log('Lấy danh sách nhóm cho tài khoản Zalo với OwnId:', ownId);
+        console.log('Danh sách tài khoản Zalo hiện có:', zaloAccounts);
+
+        const account = zaloAccounts.find(acc => acc.ownId === ownId);
+        if (!account) {
+            return res.status(404).json({ error: 'Không tìm thấy tài khoản Zalo với OwnId này' });
+        }
+
+        const groups = await account.api.getAllGroups();
+        res.json({ success: true, data: groups });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 }

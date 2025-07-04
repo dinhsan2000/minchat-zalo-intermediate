@@ -21,6 +21,7 @@ export function setupEventListeners(api, loginResolve, dataSend = null) {
         if (messageWebhookUrl) {
             // Thêm ownId vào dữ liệu để webhook biết tin nhắn từ tài khoản nào
             const msgWithOwnId = { ...msg, _accountId: ownId };
+            console.log("Nhận tin nhắn:", msgWithOwnId);
             triggerN8nWebhook(msgWithOwnId, messageWebhookUrl);
         }
     });

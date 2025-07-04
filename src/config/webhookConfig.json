@@ -1,8 +1,8 @@
 {
   "default": {
-    "messageWebhookUrl": "http://localhost:3001/api/webhook",
-    "groupEventWebhookUrl": "http://localhost:3001/api/webhook",
-    "reactionWebhookUrl": "http://localhost:3001/api/webhook"
+    "messageWebhookUrl": "http://localhost:3000/api/v1/messages/webhook",
+    "groupEventWebhookUrl": "http://localhost:3000/api/v1/messages/webhook",
+    "reactionWebhookUrl": "http://localhost:3000/api/v1/messages/webhook"
   },
   "accounts": {
   }

@@ -6,6 +6,13 @@ import { HttpsProxyAgent } from "https-proxy-agent";
 import nodefetch from "node-fetch";
 import fs from 'fs';
 import { saveImage, removeImage } from '../../utils/helpers.js';
+import * as path from 'path';
+import { randomBytes } from 'crypto';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export const zaloAccounts = [];
 
@@ -810,8 +817,6 @@ export async function loginZaloAccount(customProxy, cred, userBEId = null) {
     let loginResolve;
     return new Promise(async (resolve, reject) => {
         console.log('Bắt đầu quá trình đăng nhập Zalo...');
-        console.log('Custom proxy:', customProxy || 'không có');
-        console.log('Đang nhập với cookie:', cred ? 'có' : 'không');
 
         loginResolve = resolve;
         let agent;
@@ -994,22 +999,37 @@ export async function loginZaloAccount(customProxy, cred, userBEId = null) {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             }
+
             const cookiesDir = './data/cookies';
             if (!fs.existsSync(cookiesDir)) {
                 fs.mkdirSync(cookiesDir, { recursive: true });
                 console.log('Đã tạo thư mục cookies');
             }
-            fs.access(`${cookiesDir}/cred_${ownId}.json`, fs.constants.F_OK, (err) => {
+            const credFilePath = `${cookiesDir}/cred_${ownId}.json`;
+
+            let existingData = {};
+            if (fs.existsSync(credFilePath)) {
+                try {
+                    const existingContent = fs.readFileSync(credFilePath, 'utf8');
+                    existingData = JSON.parse(existingContent);
+                    console.log(`Đã đọc dữ liệu cũ từ file cred_${ownId}.json`);
+                } catch (error) {
+                    console.error('Lỗi khi đọc file credential cũ:', error);
+                }
+            }
+
+            const finalData = {
+                ...data,
+                createdAt: existingData.createdAt || data.createdAt,
+                updatedAt: data.updatedAt
+            };
+            
+            fs.writeFile(credFilePath, JSON.stringify(finalData, null, 4), (err) => {
                 if (err) {
-                    fs.writeFile(`${cookiesDir}/cred_${ownId}.json`, JSON.stringify(data, null, 4), (err) => {
-                        if (err) {
-                            console.error('Lỗi khi ghi file cookie:', err);
-                        } else {
-                            console.log(`Đã lưu cookie vào file cred_${ownId}.json`);
-                        }
-                    });
+                    console.error('Lỗi khi ghi file cookie:', err);
                 } else {
-                    console.log(`File cred_${ownId}.json đã tồn tại, không ghi đè`);
+                    console.log(`Đã cập nhật credential vào file cred_${ownId}.json`);
+
                 }
             });
 
@@ -1234,4 +1254,96 @@ export async function getAllGroups(req, res) {
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
+}
+
+export async function getStickerDetails(req, res) {
+    try {
+        const { ownId, stickerIds } = req.body;
+        if (!ownId || !stickerIds) {
+            throw new Error('ownId và stickerIds là bắt buộc');
+        }
+
+        const account = zaloAccounts.find(acc => acc.ownId === ownId);
+        if (!account) {
+            throw new Error('Không tìm thấy tài khoản Zalo với OwnId này');
+        }
+
+        const stickerDetails = await account.api.getStickersDetail(stickerIds.slice(0, 5));
+        console.log(`Đã lấy thông tin sticker cho stickerIds: ${stickerIds} từ tài khoản ${ownId}`);
+        if (!stickerDetails) {
+            throw new Error('Không tìm thấy thông tin sticker');
+        }
+        console.log('Thông tin sticker:', stickerDetails);
+        return { success: true, data: stickerDetails };
+    } catch (error) {
+        console.error('Lỗi trong quá trình lấy thông tin sticker:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function sendMessageToZalo(req, res) {
+    const { message, threadId, type, attachments, quote, mention, ownId } = req.body;
+
+    console.log(attachments[0]['payload']);
+    try {
+        const account = zaloAccounts.find(acc => acc.ownId === ownId);
+        if (!account) {
+            return res.status(400).json({ error: 'Không tìm thấy tài khoản Zalo với OwnId này' });
+        }
+
+        let attachmentList = [];
+        if (attachments && attachments.length > 0) {
+            const files = Array.isArray(attachments) ? attachments : [attachments];
+
+            for (const file of files) {
+                if (file?.type === 'file' && file?.payload?.data) {
+                const savedPath = await saveBufferAsFile(file.payload, file.payload.file_name);
+                if (savedPath) {
+                    attachmentList.push(savedPath);
+                }
+                }
+            }
+        }
+
+        console.log(attachmentList);
+
+        let data = {
+            msg: message,
+            quote: quote || null,
+            attachments: attachmentList || []
+        };
+
+        console.log('Dữ liệu gửi:', data);
+
+        const messageRes = await account.api.sendMessage(data, threadId, type || ThreadType.User);
+        if (!messageRes) {
+            return res.status(500).json({ success: false, error: 'Không thể gửi tin nhắn' });
+        }
+        return res.json({ success: true, data: messageRes });
+    } catch(error) {
+        console.error('Lỗi trong quá trình gửi tin nhắn:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+}
+
+export async function saveBufferAsFile(payload, originalname) {
+  const ext = path.extname(originalname || 'file.bin') || '.bin';
+  const filename = `${Date.now()}-${randomBytes(4).toString('hex')}${ext}`;
+  const uploadDir = path.join(process.cwd(), 'uploads');
+
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  const filePath = path.join(uploadDir, filename);
+
+  const buffer =
+    payload.data instanceof Buffer
+      ? payload.data
+      : Buffer.isBuffer(payload.data)
+      ? payload.data
+      : Buffer.from(payload.data); // Nếu là base64 hoặc Uint8Array
+
+  fs.writeFileSync(filePath, buffer);
+  return filePath;
 }

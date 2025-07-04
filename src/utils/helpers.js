@@ -17,9 +17,12 @@ export async function triggerN8nWebhook(msg, webhookUrl) {
         console.warn("Webhook URL is empty, skipping webhook trigger");
         return false;
     }
+
+    console.log(webhookUrl);
     
     try {
         await axios.post(webhookUrl, msg, { headers: { 'Content-Type': 'application/json' } });
+        console.log(`Webhook triggered successfully for ${webhookUrl}`);
         return true;
     } catch (error) {
         console.error("Error sending webhook request:", error.message);
@@ -29,7 +32,9 @@ export async function triggerN8nWebhook(msg, webhookUrl) {
 
 export async function saveImage(url) {
     try {
-        const imgPath = "./temp.png";
+        console.log(path.extname(url));
+        const imgPath = './' + randomString(10) + path.extname(url);
+        console.log(`Saving image to ${imgPath}`);
 
         const { data } = await axios.get(url, { responseType: "arraybuffer" });
         fs.writeFileSync(imgPath, Buffer.from(data, "utf-8"));
@@ -47,4 +52,14 @@ export function removeImage(imgPath) {
     } catch (error) {
         console.error(error);
     }
+}
+
+function randomString(length) {
+    let result = '';
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const charactersLength = characters.length;
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    return result;
 }

@@ -52,10 +52,10 @@ class EnvConfigService {
     // Lấy cấu hình mặc định
     getDefaultConfig() {
         return {
-            MESSAGE_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
-            GROUP_EVENT_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
-            REACTION_WEBHOOK_URL: 'http://localhost:3001/api/webhook',
-            LOGIN_CALLBACK_URL: 'http://localhost:3001/api/webhook'
+            MESSAGE_WEBHOOK_URL: 'http://localhost:3000/api/v1/messages/webhook',
+            GROUP_EVENT_WEBHOOK_URL: 'http://localhost:3000/api/v1/messages/webhook',
+            REACTION_WEBHOOK_URL: 'http://localhost:3000/api/v1/messages/webhook',
+            LOGIN_CALLBACK_URL: 'http://localhost:3000/api/v1/accounts/callback-login-qr'
         };
     }
 

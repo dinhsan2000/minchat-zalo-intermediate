@@ -1,4 +1,4 @@
-import { GroupEventType } from "zca-js";
+import { GroupEventType } from "zca-js-fork";
 import { getWebhookUrl, triggerN8nWebhook } from './utils/helpers.js';
 import fs from 'fs';
 import { loginZaloAccount, zaloAccounts } from './api/zalo/zalo.js';
@@ -17,11 +17,12 @@ export function setupEventListeners(api, loginResolve, dataSend = null) {
 
     // Lắng nghe sự kiện tin nhắn và gửi đến webhook được cấu hình cho tin nhắn
     api.listener.on("message", (msg) => {
+        console.log(`Received message from ${ownId}:`, msg);
         const messageWebhookUrl = getWebhookUrl("messageWebhookUrl", ownId);
+
         if (messageWebhookUrl) {
             // Thêm ownId vào dữ liệu để webhook biết tin nhắn từ tài khoản nào
             const msgWithOwnId = { ...msg, _accountId: ownId };
-            console.log("Nhận tin nhắn:", msgWithOwnId);
             triggerN8nWebhook(msgWithOwnId, messageWebhookUrl);
         }
     });
@@ -39,7 +40,6 @@ export function setupEventListeners(api, loginResolve, dataSend = null) {
     // Lắng nghe sự kiện reaction và gửi đến webhook được cấu hình cho reaction
     api.listener.on("reaction", (reaction) => {
         const reactionWebhookUrl = getWebhookUrl("reactionWebhookUrl", ownId);
-        console.log("Nhận reaction:", reaction);
         if (reactionWebhookUrl) {
             // Thêm ownId vào dữ liệu
             const reactionWithOwnId = { ...reaction, _accountId: ownId };

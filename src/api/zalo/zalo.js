@@ -1,5 +1,5 @@
 // api/zalo/zalo.js
-import { Zalo, ThreadType } from 'zca-js';
+import { Zalo, ThreadType } from 'zca-js-fork';
 import { getPROXIES, getAvailableProxyIndex } from '../../services/proxyService.js';
 import { setupEventListeners } from '../../eventListeners.js';
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -1284,7 +1284,6 @@ export async function getStickerDetails(req, res) {
 export async function sendMessageToZalo(req, res) {
     const { message, threadId, type, attachments, quote, mention, ownId } = req.body;
 
-    console.log(attachments[0]['payload']);
     try {
         const account = zaloAccounts.find(acc => acc.ownId === ownId);
         if (!account) {

@@ -17,12 +17,9 @@ export async function triggerN8nWebhook(msg, webhookUrl) {
         console.warn("Webhook URL is empty, skipping webhook trigger");
         return false;
     }
-
-    console.log(webhookUrl);
     
     try {
         await axios.post(webhookUrl, msg, { headers: { 'Content-Type': 'application/json' } });
-        console.log(`Webhook triggered successfully for ${webhookUrl}`);
         return true;
     } catch (error) {
         console.error("Error sending webhook request:", error.message);
@@ -32,7 +29,6 @@ export async function triggerN8nWebhook(msg, webhookUrl) {
 
 export async function saveImage(url) {
     try {
-        console.log(path.extname(url));
         const imgPath = './' + randomString(10) + path.extname(url);
         console.log(`Saving image to ${imgPath}`);
 

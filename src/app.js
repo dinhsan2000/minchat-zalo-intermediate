@@ -8,8 +8,8 @@ import routes from './routes/index.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 import { zaloAccounts, loginZaloAccount } from './api/zalo/zalo.js';
+import bodyParser from 'body-parser';
 
 // Dành cho ES Module: xác định __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +22,9 @@ const app = express();
 app.set('view engine', 'ejs');
 const viewsPath = path.join(__dirname, 'views');
 app.set('views', viewsPath);
+
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 // Kiểm tra thư mục views
 if (fs.existsSync(viewsPath)) {

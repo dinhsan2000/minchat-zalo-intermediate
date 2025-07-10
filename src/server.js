@@ -20,9 +20,6 @@ const PORT = process.env.PORT || 3000;
 
 console.log(`Server sẽ chạy trên cổng: ${PORT}`);
 
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
-
 // Tạo HTTP server
 const server = http.createServer(app);
 

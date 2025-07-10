@@ -312,11 +312,11 @@ router.get('/accounts/:ownId', getAccountDetails);
 router.post('/login-zalo', async (req, res) => {
     try {
         console.log('Nhận yêu cầu tạo mã QR với dữ liệu:', req.body);
-        const { proxy, ownId, userBEId } = req.body;
+        const { proxy, ownId, user_BE_Id } = req.body;
         console.log('Đang tạo mã QR với proxy:', proxy || 'không có proxy');
 
         const cred = ownId;
-        const qrCodeImage = await loginZaloAccount(proxy, cred, userBEId);
+        const qrCodeImage = await loginZaloAccount(proxy, cred, user_BE_Id);
         console.log('Đã tạo mã QR thành công, độ dài:', qrCodeImage ? qrCodeImage.length : 0);
 
         res.json({ success: true, qrCodeImage });
